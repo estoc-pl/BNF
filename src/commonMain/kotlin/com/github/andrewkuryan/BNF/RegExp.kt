@@ -2,7 +2,10 @@ package com.github.andrewkuryan.BNF
 
 sealed interface AtomicRegexp : EnumerableRegexp, RepeatableRegexp
 sealed interface RepeatableRegexp : BaseRegexp
-sealed interface EnumerableRegexp : BaseRegexp {
+sealed interface EnumerableRegexp : BaseRegexp, NestableRegexp
+sealed interface NegatableRegexp : NestableRegexp
+
+interface NestableRegexp {
     fun toStringNested(): String
 }
 
@@ -11,7 +14,7 @@ sealed interface BaseRegexp
 sealed class RegExp {
     data object ε : RegExp()
 
-    data class Symbol(val value: Char) : RegExp(), AtomicRegexp {
+    data class Symbol(val value: Char) : RegExp(), AtomicRegexp, NegatableRegexp {
         override fun toStringNested() = value.toString()
 
         override fun toString() = toStringNested()
@@ -23,7 +26,7 @@ sealed class RegExp {
         override fun toString() = toStringNested()
     }
 
-    data class Range(val value: CharRange) : RegExp(), AtomicRegexp {
+    data class Range(val value: CharRange) : RegExp(), AtomicRegexp, NegatableRegexp {
         override fun toStringNested() = "${value.first}-${value.last}"
 
         override fun toString() = "[${toStringNested()}]"
@@ -55,6 +58,17 @@ sealed class RegExp {
             is OneOrMore -> "${value.value}*"
             else -> "$value?"
         }
+    }
+
+    data class Not(
+        val first: NegatableRegexp,
+        val rest: List<NegatableRegexp> = listOf(),
+    ) : RegExp(), AtomicRegexp {
+        override fun toStringNested() = (listOf(first) + rest).let { exps ->
+            exps.joinToString("", "[^", "]") { it.toStringNested() }
+        }
+
+        override fun toString() = toStringNested()
     }
 }
 
@@ -135,6 +149,13 @@ class RegExpBuilder {
         is RegExp.ε -> RegExp.ε
         is RegExp.Maybe -> this
     }
+
+
+    operator fun Char.not() = RegExp.Not(RegExp.Symbol(this))
+    operator fun CharRange.not() = RegExp.Not(RegExp.Range(this))
+    operator fun NegatableRegexp.not() = RegExp.Not(this)
+
+    operator fun RegExp.Not.times(other: RegExp.Not) = this.copy(rest = rest + listOf(other.first) + other.rest)
 }
 
 fun regexp(builder: RegExpBuilder.() -> RegExp): RegExp = RegExpBuilder().run(builder)

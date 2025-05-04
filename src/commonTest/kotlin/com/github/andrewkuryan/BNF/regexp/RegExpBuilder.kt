@@ -7,6 +7,7 @@ import com.github.andrewkuryan.BNF.RegExp.OneOrMore
 import com.github.andrewkuryan.BNF.RegExp.Or
 import com.github.andrewkuryan.BNF.RegExp.Maybe
 import com.github.andrewkuryan.BNF.RegExp.ε
+import com.github.andrewkuryan.BNF.RegExp.Not
 import com.github.andrewkuryan.BNF.regexp
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -94,6 +95,14 @@ class DivTest {
     }
 
     @Test
+    fun `⌈BaseRegexp／BaseRegexp⌋ should apply div to Not❨Symbol❩ and Range`() {
+        assertEquals(
+            Or(Not(Symbol('a')), Range('f'..'i')),
+            regexp { !'a' / Range('f'..'i') }
+        )
+    }
+
+    @Test
     fun `⌈BaseRegexp／ε⌋ should apply div to Symbol and ε`() {
         assertEquals(
             Maybe(Symbol('x')),
@@ -138,6 +147,32 @@ class DivTest {
         assertEquals(
             Maybe(Or(Row("abc"), Row("xyz"), listOf(Symbol('p'), Symbol('h')))),
             regexp { Maybe(Or(Row("abc"), Row("xyz"))) / Maybe(Or(Symbol('p'), Symbol('h'))) }
+        )
+    }
+}
+
+class NotTest {
+    @Test
+    fun `should apply not to Range`() {
+        assertEquals(
+            Not(Range('a'..'c')),
+            regexp { !('a'..'c') }
+        )
+    }
+
+    @Test
+    fun `should apply times to Not and Not`() {
+        assertEquals(
+            Not(Range('a'..'c'), listOf(Symbol('e'))),
+            regexp { !('a'..'c') * !'e' }
+        )
+    }
+
+    @Test
+    fun `should apply times to 4 x Not`() {
+        assertEquals(
+            Not(Symbol('a'), listOf(Symbol('b'), Symbol('c'), Symbol('d'))),
+            regexp { !'a' * !'b' * !'c' * !'d' }
         )
     }
 }
