@@ -12,6 +12,15 @@ interface NestableRegexp {
 sealed interface BaseRegexp
 
 sealed class RegExp {
+    companion object {
+        val d = regexp('0'..'9')
+        val v = regexp('')
+        val f = regexp('')
+        val s = regexp { '\t' / '\n' / '\r' / v / f }
+        val w = regexp { d / ('a'..'z') / '_' }
+        val ANY = regexp { !'\n' }
+    }
+
     data object ε : RegExp()
 
     data class Symbol(val value: Char) : RegExp(), AtomicRegexp, NegatableRegexp {
