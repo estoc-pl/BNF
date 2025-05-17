@@ -11,7 +11,7 @@ interface NestableRegexp {
 
 sealed interface BaseRegexp
 
-sealed class RegExp {
+sealed class RegExp : GrammarSymbol() {
     companion object {
         val d = regexp('0'..'9')
         val v = regexp('')

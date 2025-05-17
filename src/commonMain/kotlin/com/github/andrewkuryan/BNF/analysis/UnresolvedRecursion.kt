@@ -1,9 +1,6 @@
 package com.github.andrewkuryan.BNF.analysis
 
-import com.github.andrewkuryan.BNF.Derivations
-import com.github.andrewkuryan.BNF.Nonterminal
-import com.github.andrewkuryan.BNF.ProductionKind
-import com.github.andrewkuryan.BNF.Terminal
+import com.github.andrewkuryan.BNF.*
 
 data class UnresolvedRecursion(val nonterms: Set<Nonterminal>) : Conclusion(
     ConclusionSeverity.ERROR,
@@ -27,6 +24,7 @@ fun hasUnresolvedRecursion(
                 }
 
                 is Terminal -> isResolved to curResult
+                is RegExp -> isResolved to curResult
             }
         }.let { (it.first && acc.first) to (acc.second + it.second) }
     }?.let { it.first to (it.second + (nonterm to it.first)) } ?: (true to (result + (nonterm to true)))

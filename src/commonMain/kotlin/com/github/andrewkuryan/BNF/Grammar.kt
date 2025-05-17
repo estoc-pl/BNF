@@ -63,6 +63,7 @@ class Grammar<N : SyntaxNode>(
 
     private fun Char.prod() = Production<N>(listOf(Terminal(this)))
     private fun CharRange.prod() = Production<N>(listOf(Terminal(first), Terminal(last)))
+    private fun RegExp.prod() = Production<N>(listOf(this))
     private fun Nonterminal.prod() = Production<N>(listOf(this))
 
     private fun List<Production<N>>.addToFirst(production: Production<N>) = listOf(production + first()) + drop(1)
@@ -75,25 +76,36 @@ class Grammar<N : SyntaxNode>(
 
     operator fun Nonterminal.divAssign(production: Production<N>) = divAssign(listOf(production))
     operator fun Nonterminal.divAssign(char: Char) = divAssign(char.prod())
+    operator fun Nonterminal.divAssign(regexp: RegExp) = divAssign(regexp.prod())
     operator fun Nonterminal.divAssign(range: CharRange) = divAssign(range.prod())
     operator fun Nonterminal.divAssign(nonterm: Nonterminal) = divAssign(nonterm.prod())
 
 
+    operator fun Char.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun Char.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
     operator fun Char.rangeTo(production: Production<N>) = prod() + production
     operator fun Char.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
 
+    operator fun RegExp.rangeTo(char: Char) = listOf(prod() + Terminal(char))
+    operator fun RegExp.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
+    operator fun RegExp.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
+    operator fun RegExp.rangeTo(production: Production<N>) = prod() + production
+    operator fun RegExp.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
+
     operator fun CharRange.rangeTo(char: Char) = listOf(prod() + Terminal(char))
+    operator fun CharRange.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun CharRange.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
     operator fun CharRange.rangeTo(production: Production<N>) = listOf(prod() + production)
     operator fun CharRange.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
 
     operator fun Nonterminal.rangeTo(char: Char) = listOf(prod() + Terminal(char))
+    operator fun Nonterminal.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun Nonterminal.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
     operator fun Nonterminal.rangeTo(production: Production<N>) = listOf(prod() + production)
     operator fun Nonterminal.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
 
     operator fun List<Production<N>>.rangeTo(char: Char) = addToLast(char.prod())
+    operator fun List<Production<N>>.rangeTo(regexp: RegExp) = addToLast(regexp.prod())
     operator fun List<Production<N>>.rangeTo(nonterm: Nonterminal) = addToLast(nonterm.prod())
     operator fun List<Production<N>>.rangeTo(production: Production<N>) = addToLast(production)
     operator fun List<Production<N>>.rangeTo(productions: List<Production<N>>) =
@@ -102,21 +114,31 @@ class Grammar<N : SyntaxNode>(
 
     operator fun Char.div(char: Char) = listOf(prod(), char.prod())
     operator fun Char.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
+    operator fun Char.div(regexp: RegExp) = listOf(prod(), regexp.prod())
     operator fun Char.div(production: Production<N>) = listOf(prod(), production)
+
+    operator fun RegExp.div(char: Char) = listOf(prod(), char.prod())
+    operator fun RegExp.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
+    operator fun RegExp.div(regexp: RegExp) = listOf(prod(), regexp.prod())
+    operator fun RegExp.div(production: Production<N>) = listOf(prod(), production)
 
     operator fun CharRange.div(char: Char) = listOf(prod(), char.prod())
     operator fun CharRange.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
+    operator fun CharRange.div(regexp: RegExp) = listOf(prod(), regexp.prod())
     operator fun CharRange.div(production: Production<N>) = listOf(prod(), production)
 
     operator fun Nonterminal.div(char: Char) = listOf(prod(), char.prod())
     operator fun Nonterminal.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
+    operator fun Nonterminal.div(regexp: RegExp) = listOf(prod(), regexp.prod())
     operator fun Nonterminal.div(production: Production<N>) = listOf(prod(), production)
 
     operator fun Production<N>.div(char: Char) = listOf(this, char.prod())
+    operator fun Production<N>.div(regexp: RegExp) = listOf(this, regexp.prod())
     operator fun Production<N>.div(nonterm: Nonterminal) = listOf(this, nonterm.prod())
     operator fun Production<N>.div(production: Production<N>) = listOf(this, production)
 
     operator fun List<Production<N>>.div(char: Char) = this + listOf(char.prod())
+    operator fun List<Production<N>>.div(regexp: RegExp) = this + listOf(regexp.prod())
     operator fun List<Production<N>>.div(nonterm: Nonterminal) = this + listOf(nonterm.prod())
     operator fun List<Production<N>>.div(production: Production<N>) = this + listOf(production)
 
@@ -125,6 +147,8 @@ class Grammar<N : SyntaxNode>(
     operator fun Production<N>.invoke(fn: KFunction2<N, List<N>, Unit>) = invoke(SemanticAction(fn.name, fn))
     operator fun Char.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
     operator fun Char.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
+    operator fun RegExp.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
+    operator fun RegExp.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
     operator fun CharRange.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
     operator fun CharRange.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
     operator fun Nonterminal.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
@@ -132,6 +156,7 @@ class Grammar<N : SyntaxNode>(
 
     operator fun Production<N>.invoke(action: SemanticAction<N>) = Production(symbols, action)
     operator fun Char.invoke(action: SemanticAction<N>) = prod().invoke(action)
+    operator fun RegExp.invoke(action: SemanticAction<N>) = prod().invoke(action)
     operator fun CharRange.invoke(action: SemanticAction<N>) = prod().invoke(action)
     operator fun Nonterminal.invoke(action: SemanticAction<N>) = prod().invoke(action)
 
