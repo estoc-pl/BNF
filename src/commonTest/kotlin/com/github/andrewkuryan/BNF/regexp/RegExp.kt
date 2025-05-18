@@ -21,6 +21,13 @@ class ToStringTest {
     }
 
     @Test
+    fun `⌈OneOrMore⌋ should print ❨abc❩+`() {
+        val r = regexp { regexp("abc").oneOrMore() }
+
+        assertEquals("(abc)+", r.toString())
+    }
+
+    @Test
     fun `⌈Or⌋ should print［012X-Zax-zdt］`() {
         val r = regexp { '0' / '1' / '2' / ('X'..'Z') / 'a' / ('x'..'z') / 'd' / 't' }
 

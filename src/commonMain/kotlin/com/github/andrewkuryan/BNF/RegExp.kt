@@ -42,7 +42,10 @@ sealed class RegExp : GrammarSymbol() {
     }
 
     data class OneOrMore(val value: RepeatableRegexp) : RegExp(), EnumerableRegexp {
-        override fun toStringNested() = "$value+"
+        override fun toStringNested() = when (value) {
+            is Row -> "($value)+"
+            else -> "$value+"
+        }
 
         override fun toString() = toStringNested()
     }
