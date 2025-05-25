@@ -13,7 +13,7 @@ data object Regular : Conclusion(
     "Regular grammars can be represented using regular expressions. You probably don't need to use BNF for them"
 )
 
-fun isRegular(derivations: Map<Nonterminal, Map<ProductionKind, Derivations<*>>>): Regular? =
+fun isRegular(derivations: Map<Nonterminal, Map<ProductionKind, Derivations>>): Regular? =
     derivations.all { (_, value) ->
         value.all {
             it.key == ProductionKind.Regular ||

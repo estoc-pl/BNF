@@ -11,7 +11,7 @@ data class UnresolvedRecursion(val nonterms: Set<Nonterminal>) : Conclusion(
 
 fun hasUnresolvedRecursion(
     nonterm: Nonterminal,
-    derivations: Map<Nonterminal, Map<ProductionKind, Derivations<*>>>,
+    derivations: Map<Nonterminal, Map<ProductionKind, Derivations>>,
     result: Map<Nonterminal, Boolean>,
 ): Pair<Boolean, Map<Nonterminal, Boolean>> =
     derivations.getValue(nonterm)[ProductionKind.Regular]?.fold(true to result) { acc, derivation ->
@@ -29,7 +29,7 @@ fun hasUnresolvedRecursion(
         }.let { (it.first && acc.first) to (acc.second + it.second) }
     }?.let { it.first to (it.second + (nonterm to it.first)) } ?: (true to (result + (nonterm to true)))
 
-fun hasUnresolvedRecursions(derivations: Map<Nonterminal, Map<ProductionKind, Derivations<*>>>): UnresolvedRecursion? =
+fun hasUnresolvedRecursions(derivations: Map<Nonterminal, Map<ProductionKind, Derivations>>): UnresolvedRecursion? =
     derivations.entries
         .fold(emptyMap<Nonterminal, Boolean>()) { acc, (nonterm, _) ->
             if (nonterm in acc) acc else acc + hasUnresolvedRecursion(nonterm, derivations, acc).second

@@ -21,12 +21,12 @@ data class AmbiguousDerivations(val nonterms: Set<Nonterminal>) : Conclusion(
     "Ambiguous derivations lead to the ambiguity of a grammar",
 )
 
-fun hasLeftRightRecursions(derivations: Map<Nonterminal, Map<ProductionKind, Derivations<*>>>): LeftRightRecursion? =
+fun hasLeftRightRecursions(derivations: Map<Nonterminal, Map<ProductionKind, Derivations>>): LeftRightRecursion? =
     derivations
         .filter { (_, value) -> value.any { (prodKind, _) -> prodKind is Recursion && LEFT in prodKind.kinds && RIGHT in prodKind.kinds } }
         .keys.takeIf { it.isNotEmpty() }?.let { LeftRightRecursion(it) }
 
-fun hasAmbiguousDerivations(derivations: Map<Nonterminal, Map<ProductionKind, Derivations<*>>>): AmbiguousDerivations? =
+fun hasAmbiguousDerivations(derivations: Map<Nonterminal, Map<ProductionKind, Derivations>>): AmbiguousDerivations? =
     derivations
         .filter { (_, value) ->
             value.values.flatten()

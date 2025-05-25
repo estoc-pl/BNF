@@ -7,36 +7,36 @@ sealed class ProductionKind {
     data object Regular : ProductionKind()
 }
 
-data class DerivationNode<N : SyntaxNode>(val production: Production<N>, val children: Map<Int, DerivationNode<N>>) {
+data class DerivationNode(val production: Production, val children: Map<Int, DerivationNode>) {
     override fun toString(): String = production.toString() +
             children.entries.joinToString("", "\n") { "${production.symbols[it.key]} => ${it.value}" }
 
-    fun getExpandedProduction(): Production<N> =
+    fun getExpandedProduction(): Production =
         production.symbols.foldIndexed(Production(emptyList())) { index, acc, symbol ->
             if (index in children) acc + children.getValue(index).getExpandedProduction()
             else acc + symbol
         }
 }
 
-typealias Derivations<N> = Set<DerivationNode<N>>
+typealias Derivations = Set<DerivationNode>
 
-fun <N : SyntaxNode> Grammar<N>.getDerivations(): Map<Nonterminal, Derivations<N>> =
+fun Grammar.getDerivations(): Map<Nonterminal, Derivations> =
     productions.mapValues { (nonterm, _) -> getNontermDerivations(nonterm) }
 
-fun <N : SyntaxNode> Grammar<N>.getGroupedDerivations(): Map<Nonterminal, Map<ProductionKind, Derivations<N>>> =
+fun Grammar.getGroupedDerivations(): Map<Nonterminal, Map<ProductionKind, Derivations>> =
     getDerivations().mapValues { (nonterm, derivations) -> groupNontermDerivations(nonterm, derivations) }
 
-fun <N : SyntaxNode> Grammar<N>.getNontermDerivations(
+fun Grammar.getNontermDerivations(
     nonterm: Nonterminal,
     visited: Set<Nonterminal> = setOf(nonterm),
-): Derivations<N> =
+): Derivations =
     productions.getValue(nonterm).fold(emptySet()) { prevNodes, production ->
-        prevNodes + production.symbols.foldIndexed(mapOf<Int, Derivations<N>>()) { index, acc, symbol ->
+        prevNodes + production.symbols.foldIndexed(mapOf<Int, Derivations>()) { index, acc, symbol ->
             if (symbol is Nonterminal && symbol !in visited)
                 acc + (index to getNontermDerivations(symbol, visited + symbol))
             else acc
         }.let { derivations ->
-            derivations.entries.fold(listOf<Map<Int, DerivationNode<N>>>()) { acc, entry ->
+            derivations.entries.fold(listOf<Map<Int, DerivationNode>>()) { acc, entry ->
                 if (acc.isEmpty()) entry.value.map { mapOf(entry.key to it) }
                 else acc.flatMap { prevEntry ->
                     entry.value.map { prevEntry + mapOf(entry.key to it) }.ifEmpty { listOf(prevEntry) }
@@ -48,10 +48,10 @@ fun <N : SyntaxNode> Grammar<N>.getNontermDerivations(
         }
     }
 
-fun <N : SyntaxNode> groupNontermDerivations(
+fun groupNontermDerivations(
     nonterm: Nonterminal,
-    derivations: Derivations<N>,
-): Map<ProductionKind, Derivations<N>> =
+    derivations: Derivations,
+): Map<ProductionKind, Derivations> =
     derivations.groupBy { node ->
         node.getExpandedProduction().let { production ->
             production.symbols.foldIndexed(emptySet<RecursionKind>()) { index, acc, it ->

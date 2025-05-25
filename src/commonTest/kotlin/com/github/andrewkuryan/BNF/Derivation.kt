@@ -25,7 +25,7 @@ class DerivationTest {
             }
 
             assertEquals(
-                mapOf<Nonterminal, Map<ProductionKind, Set<Production<SyntaxNode>>>>(
+                mapOf<Nonterminal, Map<ProductionKind, Set<Production>>>(
                     C to mapOf(Regular to setOf(Production(listOf(Terminal('d'))))),
                     B to mapOf(Regular to ('c' / 'd').toSet()),
                     A to mapOf(Regular to ('b' / 'c' / 'd').toSet()),

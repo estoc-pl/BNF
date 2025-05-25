@@ -1,8 +1,6 @@
 package com.github.andrewkuryan.BNF
 
-import kotlin.reflect.KFunction2
 import kotlin.reflect.KProperty
-import kotlin.reflect.KProperty0
 
 sealed class GrammarSymbol
 
@@ -16,42 +14,40 @@ data class Terminal(val value: Char) : GrammarSymbol() {
     override fun toString() = value.toString()
 }
 
-data class Production<N : SyntaxNode>(val symbols: List<GrammarSymbol>, val action: SemanticAction<N>? = null) {
+open class Production(val symbols: List<GrammarSymbol>) {
     val size = symbols.size
 
     fun first() = symbols.first()
-    fun drop(n: Int) = Production(symbols.drop(n), action)
+    fun drop(n: Int) = Production(symbols.drop(n))
 
-    operator fun plus(symbol: GrammarSymbol) = Production(symbols + symbol, action)
-    operator fun plus(other: Production<N>) = Production(symbols + other.symbols, other.action ?: action)
+    operator fun plus(symbol: GrammarSymbol) = Production(symbols + symbol)
+    operator fun plus(other: Production) = Production(symbols + other.symbols)
 
     override fun toString() = symbols.joinToString(" ")
+    override fun equals(other: Any?) = other is Production && symbols == other.symbols
+    override fun hashCode() = symbols.hashCode()
 }
 
-class Grammar<N : SyntaxNode>(
-    startSymbol: Nonterminal = S,
-    productions: Map<Nonterminal, Set<Production<N>>> = mapOf(startSymbol to mutableSetOf()),
+abstract class AbstractGrammar<P : Production>(
+    startSymbol: Nonterminal,
+    productions: Map<Nonterminal, Set<P>> = mapOf(startSymbol to mutableSetOf()),
 ) {
-    companion object {
-        val S = Nonterminal("S")
-    }
-
     private var internalStartSymbol: Nonterminal = startSymbol
-    private val internalProductions: MutableMap<Nonterminal, MutableSet<Production<N>>> = productions
+    private val internalProductions: MutableMap<Nonterminal, MutableSet<P>> = productions
         .mapValues { it.value.toMutableSet() }
         .toMutableMap()
 
     val startSymbol: Nonterminal
         get() = internalStartSymbol
-    val productions: Map<Nonterminal, Set<Production<N>>>
+    val productions: Map<Nonterminal, Set<P>>
         get() = internalProductions
 
     inner class NonterminalDelegate {
-        operator fun getValue(thisRef: Grammar<N>?, property: KProperty<*>) = Nonterminal(property.name)
+        operator fun getValue(thisRef: AbstractGrammar<P>?, property: KProperty<*>) = Nonterminal(property.name)
     }
 
     inner class StartDelegate {
-        operator fun getValue(thisRef: Grammar<N>?, property: KProperty<*>) =
+        operator fun getValue(thisRef: AbstractGrammar<P>?, property: KProperty<*>) =
             Nonterminal(property.name).apply {
                 internalStartSymbol = this
                 internalProductions[internalStartSymbol] = mutableSetOf()
@@ -61,20 +57,21 @@ class Grammar<N : SyntaxNode>(
     fun nonterm() = NonterminalDelegate()
     fun start() = StartDelegate()
 
-    private fun Char.prod() = Production<N>(listOf(Terminal(this)))
-    private fun CharRange.prod() = Production<N>(listOf(Terminal(first), Terminal(last)))
-    private fun RegExp.prod() = Production<N>(listOf(this))
-    private fun Nonterminal.prod() = Production<N>(listOf(this))
+    protected abstract fun List<GrammarSymbol>.prod(): P// = Production(this)
+    protected fun Char.prod() = listOf(Terminal(this)).prod()
+    protected fun CharRange.prod() = listOf(Terminal(first), Terminal(last)).prod()
+    protected fun RegExp.prod() = listOf(this).prod()
+    protected fun Nonterminal.prod() = listOf(this).prod()
 
-    private fun List<Production<N>>.addToFirst(production: Production<N>) = listOf(production + first()) + drop(1)
-    private fun List<Production<N>>.addToLast(production: Production<N>) = take(size - 1) + listOf(last() + production)
+    private fun List<Production>.addToFirst(production: Production) = listOf(production + first()) + drop(1)
+    private fun List<Production>.addToLast(production: Production) = take(size - 1) + listOf(last() + production)
 
 
-    operator fun Nonterminal.divAssign(nontermProductions: List<Production<N>>) {
+    operator fun Nonterminal.divAssign(nontermProductions: List<P>) {
         internalProductions.getOrPut(this) { mutableSetOf() }.addAll(nontermProductions)
     }
 
-    operator fun Nonterminal.divAssign(production: Production<N>) = divAssign(listOf(production))
+    operator fun Nonterminal.divAssign(production: P) = divAssign(listOf(production))
     operator fun Nonterminal.divAssign(char: Char) = divAssign(char.prod())
     operator fun Nonterminal.divAssign(regexp: RegExp) = divAssign(regexp.prod())
     operator fun Nonterminal.divAssign(range: CharRange) = divAssign(range.prod())
@@ -83,89 +80,82 @@ class Grammar<N : SyntaxNode>(
 
     operator fun Char.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun Char.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun Char.rangeTo(production: Production<N>) = prod() + production
-    operator fun Char.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
+    operator fun Char.rangeTo(production: Production) = prod() + production
+    operator fun Char.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
 
     operator fun RegExp.rangeTo(char: Char) = listOf(prod() + Terminal(char))
     operator fun RegExp.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun RegExp.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun RegExp.rangeTo(production: Production<N>) = prod() + production
-    operator fun RegExp.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
+    operator fun RegExp.rangeTo(production: Production) = prod() + production
+    operator fun RegExp.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
 
     operator fun CharRange.rangeTo(char: Char) = listOf(prod() + Terminal(char))
     operator fun CharRange.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun CharRange.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun CharRange.rangeTo(production: Production<N>) = listOf(prod() + production)
-    operator fun CharRange.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
+    operator fun CharRange.rangeTo(production: Production) = listOf(prod() + production)
+    operator fun CharRange.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
 
     operator fun Nonterminal.rangeTo(char: Char) = listOf(prod() + Terminal(char))
     operator fun Nonterminal.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun Nonterminal.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun Nonterminal.rangeTo(production: Production<N>) = listOf(prod() + production)
-    operator fun Nonterminal.rangeTo(productions: List<Production<N>>) = productions.addToFirst(prod())
+    operator fun Nonterminal.rangeTo(production: Production) = listOf(prod() + production)
+    operator fun Nonterminal.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
 
-    operator fun List<Production<N>>.rangeTo(char: Char) = addToLast(char.prod())
-    operator fun List<Production<N>>.rangeTo(regexp: RegExp) = addToLast(regexp.prod())
-    operator fun List<Production<N>>.rangeTo(nonterm: Nonterminal) = addToLast(nonterm.prod())
-    operator fun List<Production<N>>.rangeTo(production: Production<N>) = addToLast(production)
-    operator fun List<Production<N>>.rangeTo(productions: List<Production<N>>) =
+    operator fun List<Production>.rangeTo(char: Char) = addToLast(char.prod())
+    operator fun List<Production>.rangeTo(regexp: RegExp) = addToLast(regexp.prod())
+    operator fun List<Production>.rangeTo(nonterm: Nonterminal) = addToLast(nonterm.prod())
+    operator fun List<Production>.rangeTo(production: Production) = addToLast(production)
+    operator fun List<Production>.rangeTo(productions: List<Production>) =
         addToLast(productions.first()) + productions.drop(1)
 
 
     operator fun Char.div(char: Char) = listOf(prod(), char.prod())
     operator fun Char.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun Char.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun Char.div(production: Production<N>) = listOf(prod(), production)
+    operator fun Char.div(production: Production) = listOf(prod(), production)
 
     operator fun RegExp.div(char: Char) = listOf(prod(), char.prod())
     operator fun RegExp.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun RegExp.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun RegExp.div(production: Production<N>) = listOf(prod(), production)
+    operator fun RegExp.div(production: Production) = listOf(prod(), production)
 
     operator fun CharRange.div(char: Char) = listOf(prod(), char.prod())
     operator fun CharRange.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun CharRange.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun CharRange.div(production: Production<N>) = listOf(prod(), production)
+    operator fun CharRange.div(production: Production) = listOf(prod(), production)
 
     operator fun Nonterminal.div(char: Char) = listOf(prod(), char.prod())
     operator fun Nonterminal.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun Nonterminal.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun Nonterminal.div(production: Production<N>) = listOf(prod(), production)
+    operator fun Nonterminal.div(production: Production) = listOf(prod(), production)
 
-    operator fun Production<N>.div(char: Char) = listOf(this, char.prod())
-    operator fun Production<N>.div(regexp: RegExp) = listOf(this, regexp.prod())
-    operator fun Production<N>.div(nonterm: Nonterminal) = listOf(this, nonterm.prod())
-    operator fun Production<N>.div(production: Production<N>) = listOf(this, production)
+    operator fun Production.div(char: Char) = listOf(this, char.prod())
+    operator fun Production.div(regexp: RegExp) = listOf(this, regexp.prod())
+    operator fun Production.div(nonterm: Nonterminal) = listOf(this, nonterm.prod())
+    operator fun Production.div(production: Production) = listOf(this, production)
 
-    operator fun List<Production<N>>.div(char: Char) = this + listOf(char.prod())
-    operator fun List<Production<N>>.div(regexp: RegExp) = this + listOf(regexp.prod())
-    operator fun List<Production<N>>.div(nonterm: Nonterminal) = this + listOf(nonterm.prod())
-    operator fun List<Production<N>>.div(production: Production<N>) = this + listOf(production)
-
-
-    operator fun Production<N>.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = invoke(SemanticAction(fn.name, fn.get()))
-    operator fun Production<N>.invoke(fn: KFunction2<N, List<N>, Unit>) = invoke(SemanticAction(fn.name, fn))
-    operator fun Char.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
-    operator fun Char.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
-    operator fun RegExp.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
-    operator fun RegExp.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
-    operator fun CharRange.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
-    operator fun CharRange.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
-    operator fun Nonterminal.invoke(fn: KProperty0<(N, List<N>) -> Unit>) = prod().invoke(fn)
-    operator fun Nonterminal.invoke(fn: KFunction2<N, List<N>, Unit>) = prod().invoke(fn)
-
-    operator fun Production<N>.invoke(action: SemanticAction<N>) = Production(symbols, action)
-    operator fun Char.invoke(action: SemanticAction<N>) = prod().invoke(action)
-    operator fun RegExp.invoke(action: SemanticAction<N>) = prod().invoke(action)
-    operator fun CharRange.invoke(action: SemanticAction<N>) = prod().invoke(action)
-    operator fun Nonterminal.invoke(action: SemanticAction<N>) = prod().invoke(action)
+    operator fun List<Production>.div(char: Char) = this + listOf(char.prod())
+    operator fun List<Production>.div(regexp: RegExp) = this + listOf(regexp.prod())
+    operator fun List<Production>.div(nonterm: Nonterminal) = this + listOf(nonterm.prod())
+    operator fun List<Production>.div(production: Production) = this + listOf(production)
 
 
-    private fun Set<Production<N>>.format(head: Nonterminal) = head.toString() + " ::= " + joinToString(" | ")
+    private fun Set<Production>.format(head: Nonterminal) = head.toString() + " ::= " + joinToString(" | ")
 
     override fun toString() = productions.getValue(startSymbol).format(startSymbol) +
             (productions - startSymbol).entries.joinToString("\n", prefix = "\n") { it.value.format(it.key) }
 }
 
-fun grammar(builder: Grammar<SyntaxNode>.() -> Unit) = Grammar<SyntaxNode>().apply(builder)
-fun <N : SyntaxNode> grammar(builder: Grammar<N>.() -> Unit) = Grammar<N>().apply(builder)
+class Grammar(
+    startSymbol: Nonterminal = S,
+    productions: Map<Nonterminal, Set<Production>> = mapOf(startSymbol to mutableSetOf()),
+) : AbstractGrammar<Production>(startSymbol, productions) {
+
+    companion object {
+        val S = Nonterminal("S")
+    }
+
+    override fun List<GrammarSymbol>.prod() = Production(this)
+}
+
+fun grammar(builder: Grammar.() -> Unit) = Grammar().apply(builder)
