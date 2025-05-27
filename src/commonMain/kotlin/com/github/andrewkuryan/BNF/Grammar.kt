@@ -18,10 +18,6 @@ open class Production(val symbols: List<GrammarSymbol>) {
     val size = symbols.size
 
     fun first() = symbols.first()
-    fun drop(n: Int) = Production(symbols.drop(n))
-
-    operator fun plus(symbol: GrammarSymbol) = Production(symbols + symbol)
-    operator fun plus(other: Production) = Production(symbols + other.symbols)
 
     override fun toString() = symbols.joinToString(" ")
     override fun equals(other: Any?) = other is Production && symbols == other.symbols
@@ -57,14 +53,18 @@ abstract class AbstractGrammar<P : Production>(
     fun nonterm() = NonterminalDelegate()
     fun start() = StartDelegate()
 
-    protected abstract fun List<GrammarSymbol>.prod(): P// = Production(this)
+    protected abstract fun List<GrammarSymbol>.prod(): P
+    abstract operator fun P.plus(symbol: GrammarSymbol): P
+    abstract operator fun P.plus(other: P): P
+    abstract fun P.drop(n: Int): P
+
     protected fun Char.prod() = listOf(Terminal(this)).prod()
     protected fun CharRange.prod() = listOf(Terminal(first), Terminal(last)).prod()
     protected fun RegExp.prod() = listOf(this).prod()
     protected fun Nonterminal.prod() = listOf(this).prod()
 
-    private fun List<Production>.addToFirst(production: Production) = listOf(production + first()) + drop(1)
-    private fun List<Production>.addToLast(production: Production) = take(size - 1) + listOf(last() + production)
+    private fun List<P>.addToFirst(production: P) = listOf(production + first()) + drop(1)
+    private fun List<P>.addToLast(production: P) = take(size - 1) + listOf(last() + production)
 
 
     operator fun Nonterminal.divAssign(nontermProductions: List<P>) {
@@ -80,67 +80,66 @@ abstract class AbstractGrammar<P : Production>(
 
     operator fun Char.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun Char.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun Char.rangeTo(production: Production) = prod() + production
-    operator fun Char.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
+    operator fun Char.rangeTo(production: P) = prod() + production
+    operator fun Char.rangeTo(productions: List<P>) = productions.addToFirst(prod())
 
     operator fun RegExp.rangeTo(char: Char) = listOf(prod() + Terminal(char))
     operator fun RegExp.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun RegExp.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun RegExp.rangeTo(production: Production) = prod() + production
-    operator fun RegExp.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
+    operator fun RegExp.rangeTo(production: P) = prod() + production
+    operator fun RegExp.rangeTo(productions: List<P>) = productions.addToFirst(prod())
 
     operator fun CharRange.rangeTo(char: Char) = listOf(prod() + Terminal(char))
     operator fun CharRange.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun CharRange.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun CharRange.rangeTo(production: Production) = listOf(prod() + production)
-    operator fun CharRange.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
+    operator fun CharRange.rangeTo(production: P) = listOf(prod() + production)
+    operator fun CharRange.rangeTo(productions: List<P>) = productions.addToFirst(prod())
 
     operator fun Nonterminal.rangeTo(char: Char) = listOf(prod() + Terminal(char))
     operator fun Nonterminal.rangeTo(regexp: RegExp) = listOf(prod() + regexp)
     operator fun Nonterminal.rangeTo(nonterm: Nonterminal) = listOf(prod() + nonterm)
-    operator fun Nonterminal.rangeTo(production: Production) = listOf(prod() + production)
-    operator fun Nonterminal.rangeTo(productions: List<Production>) = productions.addToFirst(prod())
+    operator fun Nonterminal.rangeTo(production: P) = listOf(prod() + production)
+    operator fun Nonterminal.rangeTo(productions: List<P>) = productions.addToFirst(prod())
 
-    operator fun List<Production>.rangeTo(char: Char) = addToLast(char.prod())
-    operator fun List<Production>.rangeTo(regexp: RegExp) = addToLast(regexp.prod())
-    operator fun List<Production>.rangeTo(nonterm: Nonterminal) = addToLast(nonterm.prod())
-    operator fun List<Production>.rangeTo(production: Production) = addToLast(production)
-    operator fun List<Production>.rangeTo(productions: List<Production>) =
-        addToLast(productions.first()) + productions.drop(1)
+    operator fun List<P>.rangeTo(char: Char) = addToLast(char.prod())
+    operator fun List<P>.rangeTo(regexp: RegExp) = addToLast(regexp.prod())
+    operator fun List<P>.rangeTo(nonterm: Nonterminal) = addToLast(nonterm.prod())
+    operator fun List<P>.rangeTo(production: P) = addToLast(production)
+    operator fun List<P>.rangeTo(productions: List<P>) = addToLast(productions.first()) + productions.drop(1)
 
 
     operator fun Char.div(char: Char) = listOf(prod(), char.prod())
     operator fun Char.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun Char.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun Char.div(production: Production) = listOf(prod(), production)
+    operator fun Char.div(production: P) = listOf(prod(), production)
 
     operator fun RegExp.div(char: Char) = listOf(prod(), char.prod())
     operator fun RegExp.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun RegExp.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun RegExp.div(production: Production) = listOf(prod(), production)
+    operator fun RegExp.div(production: P) = listOf(prod(), production)
 
     operator fun CharRange.div(char: Char) = listOf(prod(), char.prod())
     operator fun CharRange.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun CharRange.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun CharRange.div(production: Production) = listOf(prod(), production)
+    operator fun CharRange.div(production: P) = listOf(prod(), production)
 
     operator fun Nonterminal.div(char: Char) = listOf(prod(), char.prod())
     operator fun Nonterminal.div(nonterm: Nonterminal) = listOf(prod(), nonterm.prod())
     operator fun Nonterminal.div(regexp: RegExp) = listOf(prod(), regexp.prod())
-    operator fun Nonterminal.div(production: Production) = listOf(prod(), production)
+    operator fun Nonterminal.div(production: P) = listOf(prod(), production)
 
-    operator fun Production.div(char: Char) = listOf(this, char.prod())
-    operator fun Production.div(regexp: RegExp) = listOf(this, regexp.prod())
-    operator fun Production.div(nonterm: Nonterminal) = listOf(this, nonterm.prod())
-    operator fun Production.div(production: Production) = listOf(this, production)
+    operator fun P.div(char: Char) = listOf(this, char.prod())
+    operator fun P.div(regexp: RegExp) = listOf(this, regexp.prod())
+    operator fun P.div(nonterm: Nonterminal) = listOf(this, nonterm.prod())
+    operator fun P.div(production: P) = listOf(this, production)
 
-    operator fun List<Production>.div(char: Char) = this + listOf(char.prod())
-    operator fun List<Production>.div(regexp: RegExp) = this + listOf(regexp.prod())
-    operator fun List<Production>.div(nonterm: Nonterminal) = this + listOf(nonterm.prod())
-    operator fun List<Production>.div(production: Production) = this + listOf(production)
+    operator fun List<P>.div(char: Char) = this + listOf(char.prod())
+    operator fun List<P>.div(regexp: RegExp) = this + listOf(regexp.prod())
+    operator fun List<P>.div(nonterm: Nonterminal) = this + listOf(nonterm.prod())
+    operator fun List<P>.div(production: P) = this + listOf(production)
 
 
-    private fun Set<Production>.format(head: Nonterminal) = head.toString() + " ::= " + joinToString(" | ")
+    private fun Set<P>.format(head: Nonterminal) = head.toString() + " ::= " + joinToString(" | ")
 
     override fun toString() = productions.getValue(startSymbol).format(startSymbol) +
             (productions - startSymbol).entries.joinToString("\n", prefix = "\n") { it.value.format(it.key) }
@@ -156,6 +155,9 @@ class Grammar(
     }
 
     override fun List<GrammarSymbol>.prod() = Production(this)
+    override fun Production.plus(other: Production) = Production(symbols + other.symbols)
+    override fun Production.plus(symbol: GrammarSymbol) = Production(symbols + symbol)
+    override fun Production.drop(n: Int) = Production(symbols.drop(n))
 }
 
 fun grammar(builder: Grammar.() -> Unit) = Grammar().apply(builder)

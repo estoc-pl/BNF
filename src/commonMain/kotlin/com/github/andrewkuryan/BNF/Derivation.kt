@@ -13,8 +13,8 @@ data class DerivationNode(val production: Production, val children: Map<Int, Der
 
     fun getExpandedProduction(): Production =
         production.symbols.foldIndexed(Production(emptyList())) { index, acc, symbol ->
-            if (index in children) acc + children.getValue(index).getExpandedProduction()
-            else acc + symbol
+            if (index in children) Production(acc.symbols + children.getValue(index).getExpandedProduction().symbols)
+            else Production(acc.symbols + symbol)
         }
 }
 

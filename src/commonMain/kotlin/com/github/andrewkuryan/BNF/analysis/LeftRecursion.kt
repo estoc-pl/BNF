@@ -16,7 +16,7 @@ fun hasLeftRecursions(derivations: Map<Nonterminal, Map<ProductionKind, Derivati
         .filter { (_, value) -> value.any { (prodKind, _) -> prodKind is Recursion && LEFT in prodKind.kinds } }
         .keys.takeIf { it.isNotEmpty() }?.let { LeftRecursion(it) }
 
-fun expandLeftRecProductions(
+fun Grammar.expandLeftRecProductions(
     nonterm: Nonterminal,
     target: Nonterminal,
     productions: Map<Nonterminal, Set<Production>>,
@@ -26,7 +26,7 @@ fun expandLeftRecProductions(
         else newProductions + setOf(production)
     }.let { productions + (nonterm to it) }
 
-fun eliminateNontermLeftRec(
+fun Grammar.eliminateNontermLeftRec(
     nonterm: Nonterminal,
     productions: Map<Nonterminal, Set<Production>>,
 ): Map<Nonterminal, Set<Production>> =
